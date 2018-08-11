@@ -4,3 +4,6 @@
 
 ## 2018/8/10 ##
 今天在完成batch normalization时遇到了UnicodeDecodeError。暂时还没有解决。
+## 2018/8/11 ##
+今天重新修改了下，之前出现解码错误是因为jupyter notebook的编码和eclipse似乎<br>
+有不兼容的地方。
