@@ -49,7 +49,10 @@ class TwoLayerNet(object):
         ############################################################################
         pass
         ############################################################################
-        #                             END OF YOUR CODE                             #
+        self.params['W1']=weight_scale*np.random.randn(input_dim,hidden_dim)
+        self.params['b1']=np.zeros(hidden_dim)
+        self.params['W2']=weight_scale*np.random.randn(hidden_dim,num_classes)
+        self.params['b2']=np.zeros(num_classes)
         ############################################################################
 
 
@@ -79,7 +82,14 @@ class TwoLayerNet(object):
         ############################################################################
         pass
         ############################################################################
-        #                             END OF YOUR CODE                             #
+        W1=self.params['W1']
+        W2=self.params['W2']
+        b1=self.params['b1']
+        b2=self.params['b2']
+        a1,a1_cache=affine_forward(X,W1,b1)
+        r1,r1_cache=relu_forward(a1)
+        a2,a2_cache=affine_forward(r1,W2,b2)
+        scores=a2
         ############################################################################
 
         # If y is None then we are in test mode so just return scores
@@ -99,7 +109,17 @@ class TwoLayerNet(object):
         ############################################################################
         pass
         ############################################################################
-        #                             END OF YOUR CODE                             #
+        soft_loss,dout=softmax_loss(scores,y)
+        loss=soft_loss+0.5*self.reg*(np.sum(W1**2)+np.sum(W2**2))
+        da2,dW2,db2=affine_backward(dout, a2_cache)
+        dW2+=self.reg*W2
+        dr1=relu_backward(da2, r1_cache)
+        da1,dW1,db1=affine_backward(dr1, a1_cache)
+        dW1+=self.reg*W1
+        grads['W1']=dW1
+        grads['W2']=dW2
+        grads['b1']=db1
+        grads['b2']=db2
         ############################################################################
 
         return loss, grads
@@ -166,7 +186,18 @@ class FullyConnectedNet(object):
         ############################################################################
         pass
         ############################################################################
-        #                             END OF YOUR CODE                             #
+        for layer in range(self.num_layers):
+            if layer==0:
+                layer_dims=(input_dim,hidden_dims[layer])
+            elif layer==self.num_layers-1:
+                layer_dims=(hidden_dims[layer-1],num_classes)
+            else:
+                layer_dims=(hidden_dims[layer-1],hidden_dims[layer])
+            self.params['W%d'%(layer+1)]=weight_scale*np.random.randn(layer_dims[0],layer_dims[1])
+            self.params['b%d'%(layer+1)]=np.zeros(layer_dims[1])
+            if self.normalization=='batchnorm':
+                self.params['gamma%d' % (layer + 1)] = np.ones(layer_dims[1])
+                self.params['beta%d' % (layer + 1)] = np.zeros(layer_dims[1])
         ############################################################################
 
         # When using dropout we need to pass a dropout_param dictionary to each
@@ -225,7 +256,47 @@ class FullyConnectedNet(object):
         ############################################################################
         pass
         ############################################################################
-        #                             END OF YOUR CODE                             #
+#         out=0
+#         reg_loss=0
+#         a_cache=[]
+#         r_cache=[]
+#         for layer in range(self.num_layers):
+#             W=self.params['W%d'%(layer+1)]
+#             b=self.params['b%d'%(layer+1)]
+#             reg_loss+=0.5*self.reg*np.sum(W**2)
+#             if layer==self.num_layers-1:
+#                 out,acache=affine_forward(out, W, b)
+#                 a_cache.append(acache)
+#                 scores=out
+#             elif layer==0:
+#                 out,acache=affine_forward(X, W, b)
+#                 a_cache.append(acache)
+#                 out,rcache=relu_forward(out)
+#                 r_cache.append(rcache)
+#             else:
+#                 out,acache=affine_forward(out, W, b)
+#                 a_cache.append(acache)
+#                 out,rcache=relu_forward(out)
+#                 r_cache.append(rcache)
+        out=0
+        reg_loss=0
+        a_b_r_cache=[]
+        a_cache=[]
+        for layer in range(self.num_layers):
+            W=self.params['W%d'%(layer+1)]
+            b=self.params['b%d'%(layer+1)]
+            gamma=self.params['gamma%d' % (layer + 1)]
+            beta=self.params['beta%d' % (layer + 1)]
+            if layer==self.num_layers-1:
+            out,acache=affine_forward(out, W, b)
+            a_cache.append(acache)
+            scores=out
+            elif layer==0:
+                out,a_b_rcache=affine_bn_relu_forward(X, W, b, gamma, beta, bn_param)
+                a_b_r_cache.append(a_b_rcache)
+            else:
+                out,a_b_rcache=affine_bn_relu_forward(out, W, b, gamma, beta, bn_param)
+                a_b_r_cache.append(a_b_rcache)
         ############################################################################
 
         # If test mode return early
@@ -248,7 +319,28 @@ class FullyConnectedNet(object):
         ############################################################################
         pass
         ############################################################################
-        #                             END OF YOUR CODE                             #
+#         soft_loss,dout=softmax_loss(scores, y)
+#         loss=soft_loss+reg_loss
+#         dout,grads['W%d'%self.num_layers],grads['b%d'%self.num_layers]=affine_backward(dout, a_cache[self.num_layers-1])
+#         grads['W%d'%self.num_layers]+=self.reg*self.params['W%d'%self.num_layers]
+#         for layer in range(self.num_layers-1):
+#             layer=(self.num_layers-1)-layer-1
+#             acache=a_cache[layer]
+#             rcache=r_cache[layer]
+#             dout=relu_backward(dout, rcache)
+#             dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)]=affine_backward(dout, acache)
+#             grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
+        soft_loss,dout=softmax_loss(scores, y)  
+        loss=soft_loss+reg_loss  
+        dout,grads['W%d'%self.num_layers],grads['b%d'%self.num_layers]=affine_backward(
+            dout, a_cache[0])
+        grads['W%d'%self.num_layers]+=self.reg*self.params['W%d'%self.num_layers]
+        for layer in range(self.num_layers-1):
+            layer=(self.num_layers-1)-layer-1
+            a_b_rcache=a_b_r_cache[layer]
+            dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)],
+            grads['gamma%d'%(layer+1)],grads['beta%d'%(layer+1)]=affine_bn_relu_backward(dout, a_b_rcache)
+            grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
         ############################################################################
 
         return loss, grads
