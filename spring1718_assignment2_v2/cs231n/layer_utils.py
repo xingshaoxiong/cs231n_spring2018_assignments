@@ -37,10 +37,27 @@ def affine_bn_relu_forward(x,w,b,gamma,beta,bn_param):
     cache=(fc_cache,bn_cache,re_cache)
     return out,cache
 
+
 def affine_bn_relu_backward(dout,cache):
     fc_cache,bn_cache,re_cache=cache
     dout=relu_backward(dout, re_cache)
     dout,dgamma, dbeta=batchnorm_backward_alt(dout, bn_cache)
+    dout,dw,db=affine_backward(dout, fc_cache)
+    return dout,dw,db,dgamma,dbeta
+
+
+def affine_ln_relu_forward(x,w,b,gamma,beta,ln_param):
+    a, fc_cache = affine_forward(x, w, b)
+    ln,ln_cache=layernorm_forward(a, gamma, beta, ln_param)
+    out,re_cache=relu_forward(ln)
+    cache=(fc_cache,ln_cache,re_cache)
+    return out,cache
+
+
+def affine_ln_relu_backward(dout,cache):
+    fc_cache,ln_cache,re_cache=cache
+    dout=relu_backward(dout, re_cache)
+    dout,dgamma, dbeta=layernorm_backward(dout, ln_cache)
     dout,dw,db=affine_backward(dout, fc_cache)
     return dout,dw,db,dgamma,dbeta
 

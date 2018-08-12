@@ -324,7 +324,14 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     pass
     ###########################################################################
-    #                             END OF YOUR CODE                            #
+    x_tmp=x.T
+    N,D=x_tmp.shape
+    sample_mean=np.mean(x_tmp,axis=0)
+    sample_var=np.sum((x_tmp-sample_mean)**2,axis=0)/N
+    out_temp=(x_tmp-sample_mean)/np.sqrt(sample_var+eps)
+    out_tmp=out_temp.T
+    out=gamma*out_tmp+beta
+    cache=(x_tmp,gamma,beta,eps,sample_mean,sample_var,out_tmp)
     ###########################################################################
     return out, cache
 
@@ -355,7 +362,15 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     pass
     ###########################################################################
-    #                             END OF YOUR CODE                            #
+    x,gamma,beta,eps,sample_mean,sample_var,out_tmp=cache
+    N,D=x.shape
+    dout_temp=(gamma*dout).T
+    dvar=np.sum(-0.5*dout_temp*(x-sample_mean)*(sample_var+eps)**(-1.5),axis=0)
+    dmean=-np.sum(dout_temp/np.sqrt(sample_var+eps),axis=0)-2*dvar*np.sum(x-sample_mean,axis=0)/N
+    dx=dout_temp/np.sqrt(sample_var+eps)+2*dvar*(x-sample_mean)/N+dmean/N
+    dx=dx.T
+    dgamma=np.sum(dout*out_tmp,axis=0)
+    dbeta=np.sum(dout,axis=0)
     ###########################################################################
     return dx, dgamma, dbeta
 

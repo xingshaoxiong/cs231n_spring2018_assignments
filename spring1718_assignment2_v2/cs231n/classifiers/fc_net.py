@@ -195,7 +195,7 @@ class FullyConnectedNet(object):
                 layer_dims=(hidden_dims[layer-1],hidden_dims[layer])
             self.params['W%d'%(layer+1)]=weight_scale*np.random.randn(layer_dims[0],layer_dims[1])
             self.params['b%d'%(layer+1)]=np.zeros(layer_dims[1])
-            if self.normalization=='batchnorm':
+            if self.normalization!=None and layer!=self.num_layers-1:
                 self.params['gamma%d' % (layer + 1)] = np.ones(layer_dims[1])
                 self.params['beta%d' % (layer + 1)] = np.zeros(layer_dims[1])
         ############################################################################
@@ -256,47 +256,73 @@ class FullyConnectedNet(object):
         ############################################################################
         pass
         ############################################################################
-#         out=0
-#         reg_loss=0
-#         a_cache=[]
-#         r_cache=[]
-#         for layer in range(self.num_layers):
-#             W=self.params['W%d'%(layer+1)]
-#             b=self.params['b%d'%(layer+1)]
-#             reg_loss+=0.5*self.reg*np.sum(W**2)
-#             if layer==self.num_layers-1:
-#                 out,acache=affine_forward(out, W, b)
-#                 a_cache.append(acache)
-#                 scores=out
-#             elif layer==0:
-#                 out,acache=affine_forward(X, W, b)
-#                 a_cache.append(acache)
-#                 out,rcache=relu_forward(out)
-#                 r_cache.append(rcache)
-#             else:
-#                 out,acache=affine_forward(out, W, b)
-#                 a_cache.append(acache)
-#                 out,rcache=relu_forward(out)
-#                 r_cache.append(rcache)
-        out=0
-        reg_loss=0
-        a_b_r_cache=[]
-        a_cache=[]
-        for layer in range(self.num_layers):
-            W=self.params['W%d'%(layer+1)]
-            b=self.params['b%d'%(layer+1)]
-            gamma=self.params['gamma%d' % (layer + 1)]
-            beta=self.params['beta%d' % (layer + 1)]
-            if layer==self.num_layers-1:
-            out,acache=affine_forward(out, W, b)
-            a_cache.append(acache)
-            scores=out
-            elif layer==0:
-                out,a_b_rcache=affine_bn_relu_forward(X, W, b, gamma, beta, bn_param)
-                a_b_r_cache.append(a_b_rcache)
-            else:
-                out,a_b_rcache=affine_bn_relu_forward(out, W, b, gamma, beta, bn_param)
-                a_b_r_cache.append(a_b_rcache)
+        if self.normalization==None:
+            out=0
+            reg_loss=0
+            a_cache=[]
+            r_cache=[]
+            for layer in range(self.num_layers):
+                W=self.params['W%d'%(layer+1)]
+                b=self.params['b%d'%(layer+1)]
+                reg_loss+=0.5*self.reg*np.sum(W**2)
+                if layer==self.num_layers-1:
+                    out,acache=affine_forward(out, W, b)
+                    a_cache.append(acache)
+                    scores=out
+                elif layer==0:
+                    out,acache=affine_forward(X, W, b)
+                    a_cache.append(acache)
+                    out,rcache=relu_forward(out)
+                    r_cache.append(rcache)
+                else:
+                    out,acache=affine_forward(out, W, b)
+                    a_cache.append(acache)
+                    out,rcache=relu_forward(out)
+                    r_cache.append(rcache)
+        elif self.normalization=='batchnorm':
+            out=0
+            reg_loss=0
+            a_b_r_cache=[]
+            a_cache=[]
+            for layer in range(self.num_layers):
+                W=self.params['W%d'%(layer+1)]
+                b=self.params['b%d'%(layer+1)]
+                reg_loss+=0.5*self.reg*np.sum(W**2)
+                if layer<self.num_layers-1:
+                    gamma=self.params['gamma%d' % (layer + 1)]
+                    beta=self.params['beta%d' % (layer + 1)]
+                if layer==self.num_layers-1:
+                    out,acache=affine_forward(out, W, b)
+                    a_cache.append(acache)
+                    scores=out
+                elif layer==0:
+                    out,a_b_rcache=affine_bn_relu_forward(X, W, b, gamma, beta, self.bn_params[layer])
+                    a_b_r_cache.append(a_b_rcache)
+                else:
+                    out,a_b_rcache=affine_bn_relu_forward(out, W, b, gamma, beta, self.bn_params[layer])
+                    a_b_r_cache.append(a_b_rcache)
+        else:
+            out=0
+            reg_loss=0
+            a_l_r_cache=[]
+            a_cache=[]
+            for layer in range(self.num_layers):
+                W=self.params['W%d'%(layer+1)]
+                b=self.params['b%d'%(layer+1)]
+                reg_loss+=0.5*self.reg*np.sum(W**2)
+                if layer<self.num_layers-1:
+                    gamma=self.params['gamma%d' % (layer + 1)]
+                    beta=self.params['beta%d' % (layer + 1)]
+                if layer==self.num_layers-1:
+                    out,acache=affine_forward(out, W, b)
+                    a_cache.append(acache)
+                    scores=out
+                elif layer==0:
+                    out,a_l_rcache=affine_ln_relu_forward(X, W, b, gamma, beta, self.bn_params[layer])
+                    a_l_r_cache.append(a_l_rcache)
+                else:
+                    out,a_l_rcache=affine_ln_relu_forward(out, W, b, gamma, beta, self.bn_params[layer])
+                    a_l_r_cache.append(a_l_rcache)
         ############################################################################
 
         # If test mode return early
@@ -319,28 +345,42 @@ class FullyConnectedNet(object):
         ############################################################################
         pass
         ############################################################################
-#         soft_loss,dout=softmax_loss(scores, y)
-#         loss=soft_loss+reg_loss
-#         dout,grads['W%d'%self.num_layers],grads['b%d'%self.num_layers]=affine_backward(dout, a_cache[self.num_layers-1])
-#         grads['W%d'%self.num_layers]+=self.reg*self.params['W%d'%self.num_layers]
-#         for layer in range(self.num_layers-1):
-#             layer=(self.num_layers-1)-layer-1
-#             acache=a_cache[layer]
-#             rcache=r_cache[layer]
-#             dout=relu_backward(dout, rcache)
-#             dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)]=affine_backward(dout, acache)
-#             grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
-        soft_loss,dout=softmax_loss(scores, y)  
-        loss=soft_loss+reg_loss  
-        dout,grads['W%d'%self.num_layers],grads['b%d'%self.num_layers]=affine_backward(
-            dout, a_cache[0])
-        grads['W%d'%self.num_layers]+=self.reg*self.params['W%d'%self.num_layers]
-        for layer in range(self.num_layers-1):
-            layer=(self.num_layers-1)-layer-1
-            a_b_rcache=a_b_r_cache[layer]
-            dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)],
-            grads['gamma%d'%(layer+1)],grads['beta%d'%(layer+1)]=affine_bn_relu_backward(dout, a_b_rcache)
-            grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
+        if self.normalization==None:
+            soft_loss,dout=softmax_loss(scores, y)
+            loss=soft_loss+reg_loss
+            dout,grads['W%d'%self.num_layers],grads['b%d'%self.num_layers]=affine_backward(dout, a_cache[self.num_layers-1])
+            grads['W%d'%self.num_layers]+=self.reg*self.params['W%d'%self.num_layers]
+            for layer in range(self.num_layers-1):
+                layer=(self.num_layers-1)-layer-1
+                acache=a_cache[layer]
+                rcache=r_cache[layer]
+                dout=relu_backward(dout, rcache)
+                dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)]=affine_backward(dout, acache)
+                grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
+        elif self.normalization=='batchnorm':
+            soft_loss,dout=softmax_loss(scores, y)  
+            loss=soft_loss+reg_loss  
+            dout,grads['W%d'%self.num_layers],grads['b%d'%self.num_layers]=affine_backward(
+                dout, a_cache[0])
+            grads['W%d'%self.num_layers]+=self.reg*self.params['W%d'%self.num_layers]
+            for layer in range(self.num_layers-1):
+                layer=(self.num_layers-1)-layer-1
+                a_b_rcache=a_b_r_cache[layer]
+                dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)],grads['gamma%d'%
+                (layer+1)],grads['beta%d'%(layer+1)]=affine_bn_relu_backward(dout, a_b_rcache)
+                grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
+        else:
+            soft_loss,dout=softmax_loss(scores, y)  
+            loss=soft_loss+reg_loss
+            dout,grads['W%d'%self.num_layers],grads['b%d'%self.num_layers]=affine_backward(
+                dout, a_cache[0])
+            grads['W%d'%self.num_layers]+=self.reg*self.params['W%d'%self.num_layers]
+            for layer in range(self.num_layers-1):
+                layer=(self.num_layers-1)-layer-1
+                a_l_rcache=a_l_r_cache[layer]
+                dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)],grads['gamma%d'%
+                (layer+1)],grads['beta%d'%(layer+1)]=affine_ln_relu_backward(dout, a_l_rcache)
+                grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
         ############################################################################
 
         return loss, grads
