@@ -7,3 +7,5 @@
 ## 2018/8/11 ##
 今天重新修改了下，之前出现解码错误是因为jupyter notebook的编码和eclipse似乎<br>
 有不兼容的地方。
+## 2018/8/12 ##
+今天完成了batch normalization
