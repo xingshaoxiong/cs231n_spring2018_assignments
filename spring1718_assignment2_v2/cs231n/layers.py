@@ -415,7 +415,9 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         pass
         #######################################################################
-        #                           END OF YOUR CODE                          #
+        drop_m=np.random.random(x.shape)
+        mask=(drop_m<p)/p
+        out=x*mask
         #######################################################################
     elif mode == 'test':
         #######################################################################
@@ -423,7 +425,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         pass
         #######################################################################
-        #                            END OF YOUR CODE                         #
+        out=x
         #######################################################################
 
     cache = (dropout_param, mask)
@@ -450,7 +452,7 @@ def dropout_backward(dout, cache):
         #######################################################################
         pass
         #######################################################################
-        #                          END OF YOUR CODE                           #
+        dx=dout*mask
         #######################################################################
     elif mode == 'test':
         dx = dout
@@ -492,7 +494,20 @@ def conv_forward_naive(x, w, b, conv_param):
     ###########################################################################
     pass
     ###########################################################################
-    #                             END OF YOUR CODE                            #
+    stride=conv_param['stride']
+    pad=conv_param['pad']
+    N, C, H, W=x.shape
+    F, C, HH, WW=w.shape
+    H_=(int)(1 + (H + 2 * pad - HH) / stride)
+    W_=(int)(1 + (W + 2 * pad - WW) / stride)
+    x_pad=np.pad(x, ((0,0),(0,0),(pad,pad),(pad,pad)), 'constant')
+    out=np.random.randn(N,F,H_,W_)
+    for ni in range(N):
+        for fi in range(F):
+            for xi in range(H_):
+                for yi in range(W_):
+                    out[ni,fi,xi,yi]=np.sum(x_pad[ni,:,xi*stride:xi*stride+HH,yi*stride:yi*stride+WW]*w[fi,:,:,:])            
+            out[ni,fi,:,:]+=b[fi]
     ###########################################################################
     cache = (x, w, b, conv_param)
     return out, cache
@@ -517,7 +532,25 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     pass
     ###########################################################################
-    #                             END OF YOUR CODE                            #
+    x, w, b, conv_param=cache
+    stride=conv_param['stride']
+    pad=conv_param['pad']
+    N, C, H, W=x.shape
+    F, C, HH, WW=w.shape
+    H_=(int)(1 + (H + 2 * pad - HH) / stride)
+    W_=(int)(1 + (W + 2 * pad - WW) / stride)
+    x_pad=np.pad(x, ((0,0),(0,0),(pad,pad),(pad,pad)), 'constant')
+    dx_pad = np.zeros_like(x_pad)
+    dw=np.zeros_like(w)
+    db = np.zeros_like(b)
+    for ni in range(N):
+        for fi in range(F):
+            for xi in range(H_):
+                for yi in range(W_):
+                    dx_pad[ni, :, xi * stride:xi * stride + HH, yi * stride:yi * stride + WW] += dout[ni, fi, xi, yi] * w[fi,:,:,:]
+                    dw[fi,:,:,:]+=dout[ni,fi,xi,yi]*x_pad[ni,:,xi*stride:xi*stride+HH,yi*stride:yi*stride+WW]
+            db[fi]+=np.sum(dout[ni,fi,:,:])
+    dx=dx_pad[:,:,pad:pad+H,pad:pad+W]
     ###########################################################################
     return dx, dw, db
 

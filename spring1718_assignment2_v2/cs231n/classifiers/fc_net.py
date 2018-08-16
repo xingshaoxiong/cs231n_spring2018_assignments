@@ -261,6 +261,7 @@ class FullyConnectedNet(object):
             reg_loss=0
             a_cache=[]
             r_cache=[]
+            d_cache=[]
             for layer in range(self.num_layers):
                 W=self.params['W%d'%(layer+1)]
                 b=self.params['b%d'%(layer+1)]
@@ -274,16 +275,23 @@ class FullyConnectedNet(object):
                     a_cache.append(acache)
                     out,rcache=relu_forward(out)
                     r_cache.append(rcache)
+                    if self.use_dropout:
+                        out,dcache=dropout_forward(out, self.dropout_param)
+                        d_cache.append(dcache)
                 else:
                     out,acache=affine_forward(out, W, b)
                     a_cache.append(acache)
                     out,rcache=relu_forward(out)
                     r_cache.append(rcache)
+                    if self.use_dropout:
+                        out,dcache=dropout_forward(out, self.dropout_param)
+                        d_cache.append(dcache)
         elif self.normalization=='batchnorm':
             out=0
             reg_loss=0
             a_b_r_cache=[]
             a_cache=[]
+            d_cache=[]
             for layer in range(self.num_layers):
                 W=self.params['W%d'%(layer+1)]
                 b=self.params['b%d'%(layer+1)]
@@ -298,14 +306,21 @@ class FullyConnectedNet(object):
                 elif layer==0:
                     out,a_b_rcache=affine_bn_relu_forward(X, W, b, gamma, beta, self.bn_params[layer])
                     a_b_r_cache.append(a_b_rcache)
+                    if self.use_dropout:
+                        out,dcache=dropout_forward(out, self.dropout_param)
+                        d_cache.append(dcache)
                 else:
                     out,a_b_rcache=affine_bn_relu_forward(out, W, b, gamma, beta, self.bn_params[layer])
                     a_b_r_cache.append(a_b_rcache)
+                    if self.use_dropout:
+                        out,dcache=dropout_forward(out, self.dropout_param)
+                        d_cache.append(dcache)
         else:
             out=0
             reg_loss=0
             a_l_r_cache=[]
             a_cache=[]
+            d_cache=[]
             for layer in range(self.num_layers):
                 W=self.params['W%d'%(layer+1)]
                 b=self.params['b%d'%(layer+1)]
@@ -320,9 +335,15 @@ class FullyConnectedNet(object):
                 elif layer==0:
                     out,a_l_rcache=affine_ln_relu_forward(X, W, b, gamma, beta, self.bn_params[layer])
                     a_l_r_cache.append(a_l_rcache)
+                    if self.use_dropout:
+                        out,dcache=dropout_forward(out, self.dropout_param)
+                        d_cache.append(dcache)
                 else:
                     out,a_l_rcache=affine_ln_relu_forward(out, W, b, gamma, beta, self.bn_params[layer])
                     a_l_r_cache.append(a_l_rcache)
+                    if self.use_dropout:
+                        out,dcache=dropout_forward(out, self.dropout_param)
+                        d_cache.append(dcache)
         ############################################################################
 
         # If test mode return early
@@ -354,6 +375,9 @@ class FullyConnectedNet(object):
                 layer=(self.num_layers-1)-layer-1
                 acache=a_cache[layer]
                 rcache=r_cache[layer]
+                if self.use_dropout:
+                    dcache=d_cache[layer]
+                    dout=dropout_backward(dout, dcache)
                 dout=relu_backward(dout, rcache)
                 dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)]=affine_backward(dout, acache)
                 grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
@@ -366,6 +390,9 @@ class FullyConnectedNet(object):
             for layer in range(self.num_layers-1):
                 layer=(self.num_layers-1)-layer-1
                 a_b_rcache=a_b_r_cache[layer]
+                if self.use_dropout:
+                    dcache=d_cache[layer]
+                    dout=dropout_backward(dout, dcache)
                 dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)],grads['gamma%d'%
                 (layer+1)],grads['beta%d'%(layer+1)]=affine_bn_relu_backward(dout, a_b_rcache)
                 grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
@@ -378,6 +405,9 @@ class FullyConnectedNet(object):
             for layer in range(self.num_layers-1):
                 layer=(self.num_layers-1)-layer-1
                 a_l_rcache=a_l_r_cache[layer]
+                if self.use_dropout:
+                    dcache=d_cache[layer]
+                    dout=dropout_backward(dout, dcache)
                 dout,grads['W%d'%(layer+1)],grads['b%d'%(layer+1)],grads['gamma%d'%
                 (layer+1)],grads['beta%d'%(layer+1)]=affine_ln_relu_backward(dout, a_l_rcache)
                 grads['W%d'%(layer+1)]+=self.reg*self.params['W%d'%(layer+1)]
