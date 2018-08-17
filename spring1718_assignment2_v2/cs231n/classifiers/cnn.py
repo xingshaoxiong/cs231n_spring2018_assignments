@@ -55,7 +55,14 @@ class ThreeLayerConvNet(object):
         ############################################################################
         pass
         ############################################################################
-        #                             END OF YOUR CODE                             #
+        C, H, W=input_dim
+        F=num_filters
+        self.params['W1']=weight_scale*np.random.randn(F,C,filter_size,filter_size)
+        self.params['b1']=np.zeros(F)
+        self.params['W2']=weight_scale*np.random.randn((int)(F*H*W/4),hidden_dim)
+        self.params['b2']=np.zeros(hidden_dim)
+        self.params['W3']=weight_scale*np.random.randn(hidden_dim,num_classes)
+        self.params['b3']=np.zeros(num_classes)
         ############################################################################
 
         for k, v in self.params.items():
@@ -91,7 +98,14 @@ class ThreeLayerConvNet(object):
         ############################################################################
         pass
         ############################################################################
-        #                             END OF YOUR CODE                             #
+        reg_loss=0
+        out ,cache_crp=conv_relu_pool_forward(X, W1, b1, conv_param, pool_param)
+        reg_loss+=0.5*self.reg*np.sum(W1**2)
+        out,cache_ar=affine_relu_forward(out,W2,b2)
+        reg_loss+=0.5*self.reg*np.sum(W2**2)
+        out,cache_a=affine_forward(out,W3,b3)
+        reg_loss+=0.5*self.reg*np.sum(W3**2)
+        scores=out
         ############################################################################
 
         if y is None:
@@ -110,7 +124,14 @@ class ThreeLayerConvNet(object):
         ############################################################################
         pass
         ############################################################################
-        #                             END OF YOUR CODE                             #
+        soft_loss,dout=softmax_loss(scores, y)
+        loss=soft_loss+reg_loss
+        dout,grads['W3'],grads['b3']=affine_backward(dout,cache_a)
+        grads['W3']+=self.reg*W3
+        dout,grads['W2'],grads['b2']=affine_relu_backward(dout,cache_ar)
+        grads['W2']+=self.reg*W2
+        dx, grads['W1'],grads['b1']=conv_relu_pool_backward(dout, cache_crp)
+        grads['W1']+=self.reg*W1
         ############################################################################
 
         return loss, grads

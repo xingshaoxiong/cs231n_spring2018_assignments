@@ -580,7 +580,18 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     pass
     ###########################################################################
-    #                             END OF YOUR CODE                            #
+    N, C, H, W=x.shape
+    pool_height=pool_param['pool_height']
+    pool_width=pool_param['pool_width']
+    stride=pool_param['stride']
+    H_=(int)(1 + (H - pool_height) / stride)
+    W_=(int)(1 + (W - pool_width) / stride)
+    out=np.random.randn(N,C,H_,W_)
+    for ni in range(N):
+        for ci in range(C):
+            for xi in range(H_):
+                for yi in range(W_):
+                    out[ni,ci,xi,yi]=np.max(x[ni,ci,xi*stride:xi*stride+pool_height,yi*stride:yi*stride+pool_width])
     ###########################################################################
     cache = (x, pool_param)
     return out, cache
@@ -603,7 +614,22 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     pass
     ###########################################################################
-    #                             END OF YOUR CODE                            #
+    x, pool_param=cache
+    N, C, H, W=x.shape
+    pool_height=pool_param['pool_height']
+    pool_width=pool_param['pool_width']
+    stride=pool_param['stride']
+    H_=(int)(1 + (H - pool_height) / stride)
+    W_=(int)(1 + (W - pool_width) / stride)
+    dx=np.zeros_like(x)
+    mask=np.zeros_like(x)
+    for ni in range(N):
+        for ci in range(C):
+            for xi in range(H_):
+                for yi in range(W_):
+                    mask=x[ni,ci,xi*stride:xi*stride+pool_height,yi*stride:yi*stride+pool_width
+                          ]>=np.max(x[ni,ci,xi*stride:xi*stride+pool_height,yi*stride:yi*stride+pool_width])
+                    dx[ni,ci,xi*stride:xi*stride+pool_height,yi*stride:yi*stride+pool_width]=mask*dout[ni,ci,xi,yi]
     ###########################################################################
     return dx
 
